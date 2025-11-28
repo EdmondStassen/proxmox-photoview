@@ -1,5 +1,7 @@
 #!/bin/bash
-# Photoview Proxmox LXC setup helper
+# proxmox-photoview-setup.sh
+# LXC helper script naar voorbeeld van p1mon-proxmox-setup.sh
+# Installeert Photoview + MariaDB in een Debian LXC met Docker
 
 set -e
 
@@ -37,8 +39,9 @@ if ! command -v pct >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v qm >/dev/null 2>&1; then
-  warn "qm command niet gevonden. Automatische CTID-bepaling gebruikt nu alleen LXC ID's."
+if ! command -v pvesm >/dev/null 2>&1; then
+  error "pvesm command niet gevonden. Dit script verwacht een normale Proxmox installatie."
+  exit 1
 fi
 
 ########## FUNCTIE: VOLGENDE VRIJE CTID ##########
@@ -84,6 +87,12 @@ echo
 DEFAULT_CTID=$(get_next_ctid)
 CTID=$(ask_default "Container ID" "$DEFAULT_CTID")
 HOSTNAME=$(ask_default "Container hostname" "photoview")
+
+echo
+info "Beschikbare storage:"
+pvesm status | awk 'NR==1 || NR>1 {printf "  %-15s %-10s %s\n", $1, $2, $3}' || true
+echo
+
 STORAGE=$(ask_default "Rootfs storage (bv. local-lvm, local-zfs)" "local-lvm")
 DISK_SIZE=$(ask_default "Root disk grootte" "16G")
 MEMORY=$(ask_default "RAM (MB)" "2048")
@@ -92,11 +101,21 @@ BRIDGE=$(ask_default "Netwerk bridge" "vmbr0")
 TEMPLATE=$(ask_default "Template (storage:vztmpl/bestand)" "local:vztmpl/debian-12-standard_12.2-1_amd64.tar.zst")
 APP_DIR="/opt/photoview"
 
+# Check storage type (waarschuw bij plain lvm)
+STORAGE_TYPE=$(pvesm status | awk -v s="$STORAGE" '$1==s {print $2}')
+if [ "$STORAGE_TYPE" = "lvm" ]; then
+  echo
+  error "Storage '$STORAGE' is type 'lvm' (geen lvmthin)."
+  echo "Gebruik een storage van type 'lvmthin', 'zfspool', 'btrfs' of 'dir' voor --rootfs STORAGE:SIZE."
+  echo "Bijvoorbeeld: 'local-lvm' of een ZFS pool."
+  exit 1
+fi
+
 echo
 info "Samenvatting configuratie:"
 echo "  CTID      : $CTID"
 echo "  Hostname  : $HOSTNAME"
-echo "  Storage   : $STORAGE"
+echo "  Storage   : $STORAGE (type: ${STORAGE_TYPE:-onbekend})"
 echo "  Disk size : $DISK_SIZE"
 echo "  Memory    : ${MEMORY}MB"
 echo "  Cores     : $CORES"
