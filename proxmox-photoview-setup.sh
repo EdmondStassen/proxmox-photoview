@@ -94,7 +94,7 @@ pvesm status | awk 'NR==1 || NR>1 {printf "  %-15s %-10s %s\n", $1, $2, $3}' || 
 echo
 
 STORAGE=$(ask_default "Rootfs storage (bv. local-lvm, local-zfs)" "local-lvm")
-DISK_SIZE=$(ask_default "Root disk grootte" "16G")
+DISK_SIZE=$(ask_default "Root disk grootte Gb" "16")
 MEMORY=$(ask_default "RAM (MB)" "2048")
 CORES=$(ask_default "CPU cores" "2")
 BRIDGE=$(ask_default "Netwerk bridge" "vmbr0")
